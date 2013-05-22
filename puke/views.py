@@ -47,8 +47,12 @@ class GetStuff(threading.Thread):
         self.data = data
 
     def run(self):
+        #TODO: There is a race condidion with LP thread startup.
         while True:
-            target = self.queue.get()
+            try:
+                target = self.queue.get(timeout=10)
+            except Queue.Empty:
+                return
             if isinstance(target, tuple):
                 var = target[1]
                 target = target[0]
@@ -57,7 +61,7 @@ class GetStuff(threading.Thread):
                 # Email
                 mail = imaplib.IMAP4_SSL('imap.gmail.com')
                 mail.login(settings.GMAIL_USER, settings.GMAIL_PASSWORD)
-                mail.select("inbox") # connect to inbox.
+                mail.select("inbox")  # connect to inbox.
                 result, data = mail.uid("search", None, "UnSeen")
                 if len(data[0]):
                     result, data = mail.uid('fetch', ",".join(data[0].split()),
@@ -182,17 +186,13 @@ class GetStuff(threading.Thread):
 def home(request):
     queue = Queue.Queue()
     data = {}
-    for i in range(5):
+    tasks = ["gmail", "lp_bugs", "lp_reviews", "lp_merges", "blueprints",
+             "cards"]
+    for task in tasks:
+        queue.put(task)
         t = GetStuff(queue, data)
         t.setDaemon(True)
         t.start()
-
-    queue.put("gmail")
-    queue.put("lp_bugs")
-    queue.put("lp_reviews")
-    queue.put("lp_merges")
-    queue.put("blueprints")
-    queue.put("cards")
 
     queue.join()
 
