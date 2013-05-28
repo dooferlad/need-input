@@ -125,15 +125,54 @@ class GetStuff(threading.Thread):
                     settings.JIRA_LOGIN[0], auth=settings.JIRA_LOGIN)
 
                 self.data["cards"] = []
+                data = []
                 if jira_cards.json["issues"]:
                     for issue in jira_cards.json["issues"]:
-                        self.data["cards"].append({
+                        if "parent" in issue["fields"]:
+                            parent = issue["fields"]["parent"]["key"], issue["fields"]["parent"]["fields"]
+                        else:
+                            parent = ""
+
+                        data.append({
                             "name": issue["fields"]["summary"],
                             "url": "http://cards.linaro.org/browse/" + issue["key"],
                             "status": issue["fields"]["status"]["name"],
                             "priority": issue["fields"]["priority"]["name"],
-                            "fix_versions": " ".join([v["name"] for v in issue["fields"]["fixVersions"]])
+                            "fix_versions": " ".join([v["name"] for v in issue["fields"]["fixVersions"]]),
+                            "issue_type": issue["fields"]["issuetype"]["name"],
+                            "parent": parent,
+                            "key": issue["key"],
                         })
+
+                # Sort the card data so it can be pretty-printed
+                order = ["Roadmap Card", "Blueprint", "Sub-task"]
+                for key in order:
+                    for card in data:
+                        if card["issue_type"] == key:
+                            if card["parent"]:
+                                found_parent = False
+                                for i in range(0, len(self.data["cards"])):
+                                    if self.data["cards"][i]["key"] == card["parent"][0]:
+                                        found_parent = True
+                                        break
+                                if not found_parent:
+                                    parent_card = {
+                                        "name": "(" + card["parent"][1]["summary"] + ")",
+                                        "url": "http://cards.linaro.org/browse/" + card["parent"][0],
+                                        "status": card["parent"][1]["status"]["name"],
+                                        "priority":  card["parent"][1]["priority"]["name"],
+                                        "fix_versions": "?",
+                                    }
+                                    self.data["cards"].insert(i+1, parent_card)
+                                    i += 1
+                                self.data["cards"].insert(i+1, card)
+                            else:
+                                self.data["cards"].append(card)
+
+                # Catch cards I didn't order
+                for card in data:
+                    if card["issue_type"] not in order:
+                        self.data["cards"].append(card)
 
             if target == "blueprints":
                 # Blueprints
@@ -186,7 +225,8 @@ class GetStuff(threading.Thread):
 def home(request):
     queue = Queue.Queue()
     data = {}
-    tasks = ["gmail", "lp_bugs", "lp_reviews", "lp_merges", "blueprints",
+    data["lp_blueprints"] = []
+    tasks = ["gmail", "lp_bugs", "lp_reviews", "lp_merges", #"blueprints",
              "cards"]
     for task in tasks:
         queue.put(task)

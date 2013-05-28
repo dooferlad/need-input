@@ -23,53 +23,57 @@
   </table>
 {% endif %}
 
-<h1>Blueprints</h1>
-<table>
-  <tr>
-    <th>Name</th>
-    <th>Priority</th>
-    <th>Definition Status</th>
-    <th>Implementation Status</th>
-  </tr>
-{% for bp in lp_bp %}
-  <tr>
-    <td><a href="{{ bp.url }}">{{ bp.name }}</a></td>
-    <td>{{ bp.priority }}</td>
-    <td>{{ bp.definition_status }}</td>
-    <td>{{ bp.implementation_status }}</td>
-  </tr>
-  <tr>
-    <td colspan="4">
-      <table>
-        {% for wi in bp.work_items %}
-        <tr>
-          <td class="indent">{{ wi.1 }}</td>
-          <td>{{ wi.0 }}</td>
-        </tr>
-        {% endfor %}
-      </table>
-    </td>
-  </tr>
-{% endfor %}
-</table>
+{% if lp_bp|length %}
+  <h1>Blueprints</h1>
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Priority</th>
+      <th>Definition Status</th>
+      <th>Implementation Status</th>
+    </tr>
+  {% for bp in lp_bp %}
+    <tr>
+      <td><a href="{{ bp.url }}">{{ bp.name }}</a></td>
+      <td>{{ bp.priority }}</td>
+      <td>{{ bp.definition_status }}</td>
+      <td>{{ bp.implementation_status }}</td>
+    </tr>
+    <tr>
+      <td colspan="4">
+        <table>
+          {% for wi in bp.work_items %}
+          <tr>
+            <td class="indent">{{ wi.1 }}</td>
+            <td>{{ wi.0 }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+  {% endfor %}
+  </table>
+{% endif %}
 
-<h1>Bugs</h1>
-<table>
-  <tr>
-    <th>Title</th>
-    <th>Target</th>
-    <th>Importance</th>
-    <th>Status</th>
-  </tr>
-{% for bug in lp_bugs %}
-  <tr>
-    <td><a href="{{ bug.url }}">{{ bug.title }}</a></td>
-    <td>{{ bug.target }}</td>
-    <td>{{ bug.importance }}</td>
-    <td>{{ bug.status }}</td>
-  </tr>
-{% endfor %}
-</table>
+{% if lp_bugs|length %}
+  <h1>Bugs</h1>
+  <table>
+    <tr>
+      <th>Title</th>
+      <th>Target</th>
+      <th>Importance</th>
+      <th>Status</th>
+    </tr>
+  {% for bug in lp_bugs %}
+    <tr>
+      <td><a href="{{ bug.url }}">{{ bug.title }}</a></td>
+      <td>{{ bug.target }}</td>
+      <td>{{ bug.importance }}</td>
+      <td>{{ bug.status }}</td>
+    </tr>
+  {% endfor %}
+  </table>
+{% endif %}
 
 {% if reviews|length %}
   <h1>Pending Reviews</h1>
@@ -93,23 +97,28 @@
   </table>
 {% endif %}
 
-<h1>Cards</h1>
-<table>
-  <tr>
-    <th>Name</th>
-    <th>Status</th>
-    <th>Priority</th>
-    <th>Fix Versions</th>
-  </tr>
-{% for card in jira_cards %}
-  <tr>
-    <td><a href="{{ card.url }}">{{ card.name }}</a></td>
-    <td>{{ card.status }}</td>
-    <td>{{ card.priority }}</td>
-    <td>{{ card.fix_versions }}</td>
-  </tr>
-{% endfor %}
-</table>
+{% if jira_cards|length %}
+  <h1>Cards</h1>
+  <table>
+    <tr>
+      <th>Name</th>
+      <th>Status</th>
+      <th>Priority</th>
+      <th>Fix Versions</th>
+    </tr>
+  {% for card in jira_cards %}
+    <tr>
+
+      <td {% if card.issue_type == "Sub-task" %} class="indent" {% endif %}>
+        <a href="{{ card.url }}">{{ card.name }}</a>
+      </td>
+      <td>{{ card.status }}</td>
+      <td>{{ card.priority }}</td>
+      <td>{{ card.fix_versions }}</td>
+    </tr>
+  {% endfor %}
+  </table>
+{% endif %}
 
 <h1>Calendar</h1>
 {{ calendar|safe }}
