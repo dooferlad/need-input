@@ -148,6 +148,9 @@ class GetStuff(threading.Thread):
                 order = ["Roadmap Card", "Blueprint", "Sub-task"]
                 for key in order:
                     for card in data:
+                        if "Resolved" == card["status"]:
+                            continue
+
                         if card["issue_type"] == key:
                             if card["parent"]:
                                 found_parent = False
