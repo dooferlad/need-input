@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Need Input.  If not, see <http://www.gnu.org/licenses/>.
 
+from django.http import HttpResponse
 from django.conf import settings
 from django.shortcuts import render_to_response
 import imaplib
@@ -26,6 +27,12 @@ from launchpadlib.launchpad import Launchpad
 import urlparse
 import threading
 import Queue
+import urllib
+import urllib2
+import json
+from status_hacking import get_cards, organise_cards, print_summary
+from datetime import datetime
+from models import DefaultFilters
 
 
 def create_wi_list(text):
@@ -101,6 +108,15 @@ class GetStuff(threading.Thread):
 
                 self.data["lp_bugs"] = sorted(self.data["lp_bugs"], key=lambda bug: bug_prio[bug["importance"]])
 
+
+                self.data["lp_bugs"] = [b for b in self.data["lp_bugs"] if
+                                        bug_prio[b["importance"]] <=
+                                        bug_prio[settings.MIN_BUG_PRIORITY]]
+
+                self.data["lp_bugs"] = [b for b in self.data["lp_bugs"] if
+                                        b["target"] not in
+                                        settings.IGNORE_PROJECTS]
+
             if target == "lp_reviews":
                 # Reviews
                 cachedir = os.path.join(settings.PROJECT_ROOT, ".launchpadlib/cache/")
@@ -126,8 +142,8 @@ class GetStuff(threading.Thread):
 
                 self.data["cards"] = []
                 data = []
-                if jira_cards.json["issues"]:
-                    for issue in jira_cards.json["issues"]:
+                if jira_cards.json()["issues"]:
+                    for issue in jira_cards.json()["issues"]:
                         if "parent" in issue["fields"]:
                             parent = issue["fields"]["parent"]["key"], issue["fields"]["parent"]["fields"]
                         else:
@@ -155,7 +171,7 @@ class GetStuff(threading.Thread):
                             if card["parent"]:
                                 found_parent = False
                                 for i in range(0, len(self.data["cards"])):
-                                    if self.data["cards"][i]["key"] == card["parent"][0]:
+                                    if self.data["cards"][i].get("key") == card["parent"][0]:
                                         found_parent = True
                                         break
                                 if not found_parent:
@@ -208,7 +224,7 @@ class GetStuff(threading.Thread):
                 link = var
 
                 bp = requests.get(re.sub(r"https://blueprints.launchpad.net",
-                                    r"https://api.launchpad.net/devel", link)).json
+                            r"https://api.launchpad.net/devel", link)).json()
 
                 if(bp["assignee_link"] ==
                     "https://api.launchpad.net/devel/~%s" % settings.LP_USER and
@@ -249,3 +265,40 @@ def home(request):
             "emails": data["emails"],
             "calendar": settings.CAL_EMBED
         })
+
+from django.views.generic import TemplateView
+cards = None
+
+class FastData():
+    """JSON loaded into a dictionary once for fast access.
+
+    Since python dictionaries are thread safe, we just wrap up some
+    management functions with the storage to load the data.
+    """
+    def __init__(self):
+        self.load()
+
+    def load(self):
+        jira_cards = get_cards()
+        if DefaultFilters.objects.count() == 0:
+            print "Creating default filters"
+            filters = DefaultFilters()
+            filters.save()
+        else:
+            filters = DefaultFilters.objects.all()[0]
+        start_date = filters.from_date
+        end_date = filters.to_date
+        self.cards = organise_cards(jira_cards, start_date, end_date)
+
+    def get(self):
+        return self.cards
+
+data = FastData()
+
+class Status(TemplateView):
+    template_name = 'status.html'
+
+    def get_context_data(self, **kwargs):
+        return data.get()
+
+

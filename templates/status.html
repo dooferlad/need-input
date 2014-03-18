@@ -1,0 +1,33 @@
+{% load cache %}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Linaro Project Status</title>
+</head>
+<body>
+  <table>
+    <tr>
+      <!--Start with empty cell to fill with project names-->
+      <th></th>
+
+      <!--List all states that a card can be in-->
+      {% for state in states %}
+        <th>{{ state }}</th>
+      {% endfor %}
+    </tr>
+    <!--Now for each project, list the number of cards in each state-->
+    {% for row in summary_table %}
+      <tr>
+        {% for column in row %}
+          <td>{{ column }}</td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </table>
+  <table>
+    <tr>
+
+    </tr>
+  </table>
+</body>
+</html>

@@ -20,11 +20,13 @@ from django.conf import settings
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
+from puke.views import Status
 admin.autodiscover()
 
 urlpatterns = patterns('',
     # Home
     url(r'^$', 'puke.views.home', name='home'),
+    url(r'status/', Status.as_view(), name='status'),
 
     # Handle JS libs and CSS.
     url(r'^js/(?P<path>.*)$', 'django.views.static.serve',

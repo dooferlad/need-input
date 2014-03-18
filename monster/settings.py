@@ -1,6 +1,7 @@
 # Django settings for monster project.
 
 import os
+import datetime
 
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
@@ -160,3 +161,6 @@ LOGGING = {
 }
 
 from local_settings import *
+
+DEFAULT_START_DATE = datetime.date(2014,3,8)
+DEFAULT_END_DATE = datetime.date(2014,9,14)
