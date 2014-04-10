@@ -266,7 +266,7 @@ def home(request):
             "calendar": settings.CAL_EMBED
         })
 
-from django.views.generic import TemplateView
+from django.views.generic import TemplateView, View
 cards = None
 
 class FastData():
@@ -276,24 +276,42 @@ class FastData():
     management functions with the storage to load the data.
     """
     def __init__(self):
+        self.cards = None
         self.load()
 
     def load(self):
-        jira_cards = get_cards()
         if DefaultFilters.objects.count() == 0:
             print "Creating default filters"
             filters = DefaultFilters()
             filters.save()
-        else:
-            filters = DefaultFilters.objects.all()[0]
-        start_date = filters.from_date
-        end_date = filters.to_date
-        self.cards = organise_cards(jira_cards, start_date, end_date)
 
-    def get(self):
+        filters = DefaultFilters.objects.all()[0]
+        self.jira_cards = get_cards()
+        self.cards = organise_cards(
+                self.jira_cards, filters.from_date, filters.to_date)
+
+
+    def get(self, component_filter=None, status_filter=None):
+        """Return data needed for page.
+
+        This is optimised to not do any work in the general case of needing
+        all data, only filtering when less than all data is requested.
+        """
+
+        if component_filter or status_filter:
+            filters = DefaultFilters.objects.all()[0]
+            return organise_cards(
+                self.jira_cards, filters.from_date, filters.to_date,
+                component_filter=component_filter,
+                status_filter=status_filter)
+
         return self.cards
 
+    def get_cards(self, component_filter=None, status_filter=None):
+        pass
+
 data = FastData()
+
 
 class Status(TemplateView):
     template_name = 'status.html'
@@ -302,3 +320,17 @@ class Status(TemplateView):
         return data.get()
 
 
+class Component(TemplateView):
+    template_name = 'component_status.html'
+
+    def get_context_data(self, component_name=None, state_name=None, **kwargs):
+        return data.get(component_name, state_name)
+
+class Roadmap(TemplateView):
+    template_name = 'roadmap.html'
+
+    def get_context_data(self, **kwargs):
+        return data.get()
+
+def get_json(request, component_name):
+    return HttpResponse(json.dumps(data.get(component_name)))

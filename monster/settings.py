@@ -12,6 +12,10 @@ ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 JS_PATH = os.path.join(ROOT_PATH, "js")
 CSS_PATH = os.path.join(ROOT_PATH, "css")
 
+# Not STATIC_ROOT - this is hacky static stuff, not production :-)
+STATIC_PATH = os.path.join(ROOT_PATH, "static")
+print STATIC_PATH
+
 ADMINS = (
     # ('Your Name', 'your_email@example.com'),
 )

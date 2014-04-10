@@ -1,0 +1,14 @@
+{% load cache %}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Linaro Project Status</title>
+</head>
+<body>
+  <ul>
+    {% for id, card in issues.items %}
+      <li><a href="{{ card.url }}">{{ card.summary }}</a></li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

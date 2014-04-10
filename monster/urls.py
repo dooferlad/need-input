@@ -20,19 +20,34 @@ from django.conf import settings
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
-from puke.views import Status
+from puke.views import Status, Component, Roadmap, get_json
 admin.autodiscover()
 
 urlpatterns = patterns('',
     # Home
     url(r'^$', 'puke.views.home', name='home'),
     url(r'status/', Status.as_view(), name='status'),
+    url(r'component/(?P<component_name>.*)/(?P<state_name>.*)$', Component.as_view(),
+        name='component'),
+    url(r'component/(?P<component_name>.*)$', Component.as_view(),
+        name='component'),
+    url(r'roadmap/(?P<component_name>.*)$', Roadmap.as_view(),
+        name='roadmap'),
+
+    # JSON API
+    url(r'API/(?P<component_name>.*)\.json$', 'puke.views.get_json'),
 
     # Handle JS libs and CSS.
     url(r'^js/(?P<path>.*)$', 'django.views.static.serve',
         {'document_root': settings.JS_PATH}),
     url(r'^css/(?P<path>.*)$', 'django.views.static.serve',
         {'document_root': settings.CSS_PATH}),
+
+    url(r'^foo/(?P<path>.*)$', 'django.views.static.serve',
+        {'document_root': settings.STATIC_PATH}),
+
+    url(r'^monster/static/(?P<path>.*)$', 'django.views.static.serve',
+        {'document_root': settings.STATIC_PATH}),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
