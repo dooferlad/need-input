@@ -291,7 +291,6 @@ class FastData():
         """
 
         if component_filter or status_filter:
-            filters = DefaultFilters.objects.all()[0]
             return organise_cards(
                 self.jira_cards,
                 component_filter=component_filter,
