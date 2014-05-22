@@ -1,0 +1,32 @@
+.bar {
+    fill: steelblue;
+}
+
+.bar text {
+    fill: black;
+    font: 10px sans-serif;
+    text-anchor: end;
+}
+
+.axis {
+    font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+}
+
+.x.axis path {
+    display: none;
+}
+
+.chart {
+  width: 100%;
+}
+
+.no-margin-bottom {
+  margin-bottom: 0;
+}

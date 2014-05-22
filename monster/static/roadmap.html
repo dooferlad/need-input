@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="roadmapApp" id="top">
+<head>
+  <title>Linaro Roadmap</title>
+  <meta charset="utf-8">
+  <!--[if lt IE 10]>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <![endif]-->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Custom styles for this template -->
+  <link href="/bootstrap/sticky-footer-navbar.css" rel="stylesheet">
+
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+          <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+          <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+  <!-- FastClick is a hack to avoid the 300ms click delay for mobile browsers-->
+  <script src="/bootstrap/assets/fastclick.min.js"></script>
+    <!--<script src="http://d3js.org/d3.v3.min.js"></script>-->
+    <script src="/bootstrap/assets/d3.v3.min.js"></script>
+    <script src="/bootstrap/app/bower_components/angular/angular.js"></script>
+    <script src="/bootstrap/app/bower_components/angular-route/angular-route.js"></script>
+    <script src="/bootstrap/app/bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
+    <script src="/monster/static/drawRoadmap.js"></script>
+    <script src="/monster/static/dateparser.js"></script>
+    <script src="/monster/static/cyclepicker.js"></script>
+    <script src="/monster/static/app.js"></script>
+    <script src="/monster/static/roadmapControllers.js"></script>
+    <link rel="stylesheet" href="/bootstrap/app/bower_components/bootstrap/dist/css/bootstrap.css">
+    <link rel="stylesheet" href="/monster/static/roadmap.css">
+</head>
+
+
+
+<body ng-controller="RoadmapListCtrl">
+
+  <!-- Fixed navbar -->
+  <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button"
+                class="navbar-toggle"
+                ng-init="navCollapsed = true"
+                ng-click="navCollapsed = !navCollapsed">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">Linaro Roadmap</a>
+      </div>
+      <div class="collapse navbar-collapse"
+           ng-class="!navCollapsed && 'in'"
+           ng-click="navCollapsed=true">
+        <ul class="nav navbar-nav">
+
+          <li class="dropdown">
+            <a href="#"
+               class="dropdown-toggle"
+               data-toggle="dropdown">
+              Select Team <b class="caret"></b>
+            </a>
+            <ul class="dropdown-menu">
+              <li ng-repeat="component in data.components | orderBy:'name'">
+                <a href="#/roadmap?team={{ component.name }}" ng-click="team = component.name">
+                  {{ component.name }}
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li>
+            <a href ng-click="openSprintSelector('start')">Select Date Range <b class="caret"></b></a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Fixed sprint range selector (default hidden) -->
+
+  </div>
+
+  <!-- Begin page content -->
+  <div class="container-fluid">
+    <div collapse="isCollapsed" class="panel panel-default">
+      <div class="panel-body">
+        <ul class="list-group no-margin-bottom">
+          <li class="list-group-item" ng-repeat="year in data.sprint_data">
+            {{ year.name }}
+            <div class="btn-group">
+                <!--<label
+                        class="btn btn-primary"
+                        ng-repeat="sprint in year.sprints"
+                        ng-model="radioModel"
+                        btn-radio="'{{ sprint.start }}'">
+                  {{ sprint.name }}
+                </label>-->
+              <label ng-repeat="sprint in year.sprints"
+                     class="btn btn-primary"
+                     ng-class="{active: sprintSelected(year.name, sprint.name)}"
+                     ng-mouseenter="mouseenterSprint(year.name, sprint.name)"
+                     ng-mouseleave="mouseleaveSprint()"
+                     ng-click="clickSprint(year.name, sprint.name)">
+                {{ sprint.name }}
+              </label>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div data-ng-view class="chart"></div>
+  </div>
+</body>
+</html>
