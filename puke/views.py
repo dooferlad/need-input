@@ -23,7 +23,7 @@ import os
 import re
 import requests
 from BeautifulSoup import BeautifulSoup
-from launchpadlib.launchpad import Launchpad
+#from launchpadlib.launchpad import Launchpad
 import urlparse
 import threading
 import Queue
@@ -280,16 +280,8 @@ class FastData():
         self.load()
 
     def load(self):
-        if DefaultFilters.objects.count() == 0:
-            print "Creating default filters"
-            filters = DefaultFilters()
-            filters.save()
-
-        filters = DefaultFilters.objects.all()[0]
         self.jira_cards = get_cards()
-        self.cards = organise_cards(
-                self.jira_cards)
-
+        self.cards = organise_cards(self.jira_cards)
 
     def get(self, component_filter=None, status_filter=None):
         """Return data needed for page.
