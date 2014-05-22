@@ -17,6 +17,7 @@
 
 from django.conf.urls import patterns, include, url
 from django.conf import settings
+import os
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
@@ -25,14 +26,14 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     # Home
-    url(r'^$', 'puke.views.home', name='home'),
-    url(r'status/', Status.as_view(), name='status'),
-    url(r'component/(?P<component_name>.*)/(?P<state_name>.*)$', Component.as_view(),
-        name='component'),
-    url(r'component/(?P<component_name>.*)$', Component.as_view(),
-        name='component'),
-    url(r'roadmap/(?P<component_name>.*)$', Roadmap.as_view(),
-        name='roadmap'),
+    #url(r'^$', 'puke.views.home', name='home'),
+    #url(r'status/', Status.as_view(), name='status'),
+    #url(r'component/(?P<component_name>.*)/(?P<state_name>.*)$', Component.as_view(),
+    #     name='component'),
+    # url(r'component/(?P<component_name>.*)$', Component.as_view(),
+    #     name='component'),
+    #url(r'roadmap/(?P<component_name>.*)$', Roadmap.as_view(),
+    #     name='roadmap'),
 
     # JSON API
     url(r'API/(?P<component_name>.*)\.json$', 'puke.views.get_json'),
@@ -49,9 +50,12 @@ urlpatterns = patterns('',
     url(r'^monster/static/(?P<path>.*)$', 'django.views.static.serve',
         {'document_root': settings.STATIC_PATH}),
 
+    url(r'^bootstrap/(?P<path>.*)$', 'django.views.static.serve',
+        {'document_root': os.path.join(settings.ROOT_PATH, "../bootstrap")}),
+
     # Uncomment the admin/doc line below to enable admin documentation:
-    url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
+    #url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
     # Uncomment the next line to enable the admin:
-    url(r'^admin/', include(admin.site.urls)),
+    #url(r'^admin/', include(admin.site.urls)),
 )

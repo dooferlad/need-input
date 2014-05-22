@@ -6,6 +6,7 @@ import local_settings as settings
 import os.path
 import time
 import datetime
+import cProfile
 
 def download(url, filename, max_results=None):
     got_results = 0
@@ -16,7 +17,8 @@ def download(url, filename, max_results=None):
     while max_results is None or got_results < max_results:
         fetch_url = url + "&startAt=%d" % got_results
         start_time = time.time()
-        data = requests.get(fetch_url, auth=settings.JIRA_LOGIN).json()
+        data = requests.get(fetch_url, auth=settings.JIRA_LOGIN)
+        data = data.json()
         duration = time.time() - start_time
         print "Query took", duration, "seconds."
 
@@ -63,7 +65,8 @@ def get_cards(get_update=False):
         if get_update:
             print "Downloading update"
             # TODO: calculate update time based on age of "filename"
-            jql += ' AND updated > -3d'
+            # -- no - put in CouchDB! Keep an update time or something.
+            jql += ' AND updated > -30d'
             url += urllib.quote_plus(jql)
             updates = download(url, "update.json")
 
@@ -94,8 +97,7 @@ def get_cards(get_update=False):
 
     return jira_cards
 
-
-def add_card(card, cards, start_date, end_date):
+def add_card(card, cards, start_date, end_date, include_changelog):
     # Given a lump of data from Jira, insert data into nice dict.
     completion_date = None
     include = False
@@ -104,19 +106,25 @@ def add_card(card, cards, start_date, end_date):
             if "releaseDate" in fixversion:
                 completion_date = datetime.datetime.strptime(
                     fixversion["releaseDate"], "%Y-%m-%d").date()
-                if completion_date >= start_date and completion_date <= end_date:
-                    include = True
-                    break
+                break
 
     if card["fields"]["resolution"] and card["fields"]["resolutiondate"]:
         if not completion_date:
             completion_date = datetime.datetime.strptime(
                 card["fields"]["resolutiondate"][:10], "%Y-%m-%d").date()
-            if completion_date >= start_date and completion_date <= end_date:
-                include = True
 
-    # XXX Hack hack hack
-    include = True
+    if completion_date is None:
+        return False
+
+    # If we haven't been given a start or end date, these assignments will
+    # make sure that the None values are treated as always in range.
+    if start_date is None:
+        start_date = completion_date
+    if end_date is None:
+        end_date = completion_date
+
+    if completion_date >= start_date and completion_date <= end_date:
+        include = True
 
     if not include:
         return False
@@ -125,7 +133,7 @@ def add_card(card, cards, start_date, end_date):
         completion_date.strftime("%Y-%m-%d")
     except AttributeError:
         completion_date = datetime.datetime.strptime(
-                    "3000-01-01", "%Y-%m-%d").date()
+                    "9999-01-01", "%Y-%m-%d").date()
 
     filtered_card = {
         "status": card["fields"]["status"]["name"],
@@ -136,7 +144,7 @@ def add_card(card, cards, start_date, end_date):
         "created": card["fields"]["created"],
     }
 
-    if "changelog" in card:
+    if include_changelog and "changelog" in card:
         filtered_card["changelog"] = card["changelog"]
 
     cards["issues"].append(filtered_card)
@@ -155,8 +163,9 @@ def add_card(card, cards, start_date, end_date):
     return True
 
 
-def organise_cards(jira_cards, start_date, end_date, component_filter=None,
-                   status_filter=None):
+def organise_cards(jira_cards, start_date=None, end_date=None,
+                   component_filter=None, status_filter=None,
+                   include_changelog=False):
     states = ["Admin",
               "Drafting",
               "Approved",
@@ -168,7 +177,7 @@ def organise_cards(jira_cards, start_date, end_date, component_filter=None,
               #"Total"]
 
     cards = {
-        "components": {},
+        "components": [],
         "issues": [],
         "num_issues": 0,
         "summary": {},
@@ -180,9 +189,12 @@ def organise_cards(jira_cards, start_date, end_date, component_filter=None,
     components = {}
     for card in jira_cards["issues"]:
         for target_component in card["fields"]["components"]:
-            components[target_component["id"]] = target_component["name"]
-            cards["components"][target_component["id"]] = \
-                target_component["name"]
+            if target_component["id"] not in components:
+                components[target_component["id"]] = target_component["name"]
+                cards["components"].append({
+                    "id": target_component["id"],
+                    "name": target_component["name"]
+                })
 
     # Pick out cards
     for component_id, component_name in components.iteritems():
@@ -196,7 +208,8 @@ def organise_cards(jira_cards, start_date, end_date, component_filter=None,
                         card["fields"]["status"]["name"]):
                         continue
 
-                    if add_card(card, cards, start_date, end_date):
+                    if add_card(card, cards, start_date, end_date,
+                                include_changelog):
                         state_name = card["fields"]["status"]["name"]
                         if state_name in states:
                             states[state_name] += 1
@@ -213,11 +226,10 @@ def organise_cards(jira_cards, start_date, end_date, component_filter=None,
     # HTML table, summarising card states per team. Note that if
     # any filters have been used then this will also be filtered.
     project_names = []
-    for id in cards["components"]:
-        name = cards["components"][id]
-        if component_filter and name != component_filter:
+    for component in cards["components"]:
+        if component_filter and component["name"] != component_filter:
             continue
-        project_names.append((id, name))
+        project_names.append((component["id"], component["name"]))
     project_names = sorted(project_names, key=lambda tup: tup[1])
 
     for id, name in project_names:
@@ -237,6 +249,26 @@ def organise_cards(jira_cards, start_date, end_date, component_filter=None,
         cards["summary_table"][-1].append(str(total))
 
     cards["num_issues"] = len(cards["issues"])
+
+    # Add information about cycles with available data
+    metrics = Metrics(cards, jira_cards, start_date, end_date)
+    metrics.get_metrics()
+
+    cards["sprint_data"] = []
+    for sprint in metrics.sprint_data:
+        if(len(cards["sprint_data"]) == 0 or
+           sprint["end"].year != cards["sprint_data"][-1]["name"]):
+            cards["sprint_data"].append({
+                "name": sprint["end"].year,
+                "sprints": [],
+            })
+        cards["sprint_data"][-1]["sprints"].append({
+            "name": sprint["end"].month,
+            "start": str(sprint["start"]),
+            "end": str(sprint["end"]),
+        })
+
+
 
     return cards
 
@@ -292,12 +324,35 @@ class Metrics():
             "Review": "Drafting",
             "Closing-review": "Closing-out Review",
         }
-        self.start_date = start_date
-        if end_date < today.date():
-            self.end_date = end_date
-        else:
-            self.end_date = today.date()
+
         self.cards = cards
+        oldest_card_date = today
+        newest_card_date = today
+
+        for card in self.cards["issues"]:
+            t = datetime.datetime.strptime(card["completion_date"], "%Y-%m-%d")
+            if t.year == 9999:
+                # No completion date is encoded with year 9999. Ignore them.
+                continue
+            oldest_card_date = min(t, oldest_card_date)
+            newest_card_date = max(t, newest_card_date)
+
+            if "changelog" in card:
+                for step in card["changelog"]["histories"]:
+                    t = datetime.datetime.strptime(
+                            step["created"][:16], "%Y-%m-%dT%H:%M")
+                    oldest_card_date = min(t, oldest_card_date)
+                    newest_card_date = max(t, newest_card_date)
+
+        if start_date is not None:
+            self.start_date = max(start_date, oldest_card_date.date())
+        else:
+            self.start_date = oldest_card_date.date()
+
+        if end_date is not None:
+            self.end_date = min(end_date, newest_card_date.date())
+        else:
+            self.end_date = newest_card_date.date()
 
     def get_metrics(self):
         """Calculate a bunch of metrics about the cards
@@ -316,7 +371,7 @@ class Metrics():
 
         found_crap = {}
 
-        for component_id, component_name in self.cards["components"].iteritems():
+        for component in self.cards["components"]:
             #if component_name != "LAVA":
             #    continue
 
@@ -340,14 +395,22 @@ class Metrics():
             # ]
             self.sprint_data = []
             month_offset = 0
+            year_offset = 0
             while True:
-                t = datetime.date(self.start_date.year,
-                                  self.start_date.month + month_offset,
-                                  self.start_date.day)
+
+                m = (self.start_date.month - 1 + month_offset) % 12 + 1
+                y = (self.start_date.month - 1 + month_offset) / 12 +\
+                    self.start_date.year
+                #print self.start_date.month, month_offset, m, y
+                t = datetime.date(y, m, self.start_date.day)
+                month_offset += 1
 
                 cycle_start, cycle_end = self.get_cycle_dates(t)
                 if cycle_start > self.end_date:
                     break
+
+                #print cycle_start, cycle_end, self.end_date
+
                 self.sprint_data.append({
                     "start": cycle_start,
                     "end": cycle_end,
@@ -360,70 +423,79 @@ class Metrics():
                     "index": month_offset,
                 })
 
-                month_offset += 1
+                if False:
+                    # TODO: Clear this out to an archive somewhere
+                    # Logic from initial card metrics hack. Don't use for web.
+                    delta_time = cycle_start
+                    while delta_time <= cycle_end:
+                        delta_end = delta_time + datetime.timedelta(days=1)
+                        self.sprint_data[-1]["deltas"].append({
+                            "start": delta_time,
+                            "end": delta_end,
+                            "counts": {}
+                        })
+                        delta_time = delta_end
 
-                delta_time = cycle_start
-                while delta_time <= cycle_end:
-                    delta_end = delta_time + datetime.timedelta(days=1)
-                    self.sprint_data[-1]["deltas"].append({
-                        "start": delta_time,
-                        "end": delta_end,
-                        "counts": {}
-                    })
-                    delta_time = delta_end
+                    for state in self.cards["states"]:
+                        self.sprint_data[-1]["counts"][state] = 0
+                        self.sprint_data[-1]["times"][state] = datetime.timedelta()
+                        self.sprint_data[-1]["time_until_now"][state] = datetime.timedelta()
+                        for delta in self.sprint_data[-1]["deltas"]:
+                            delta["counts"][state] = 0
 
-                for state in self.cards["states"]:
-                    self.sprint_data[-1]["counts"][state] = 0
-                    self.sprint_data[-1]["times"][state] = datetime.timedelta()
-                    self.sprint_data[-1]["time_until_now"][state] = datetime.timedelta()
-                    for delta in self.sprint_data[-1]["deltas"]:
-                        delta["counts"][state] = 0
+            if False:
+                # TODO: Clear this out to an archive somewhere
+                # Logic from initial card metrics hack. Don't use for web.
+                for card in self.cards["issues"]:
+                    if component["id"] in card["components"]:
+                        if "changelog" not in card:
+                            continue
+                        self.card_metrics(card)
 
-            for card in self.cards["issues"]:
-                if component_id in card["components"]:
-                    if "changelog" not in card:
-                        continue
-                    self.card_metrics(card)
-
-            print "-" * 10, component_name, "-" * 10
-            for sprint in self.sprint_data:
-                print sprint["start"], "to", sprint["end"]
-                print " Late:", sprint["late_cards"]
-                for state, count in sprint["counts"].iteritems():
-                    print "  %20s %3d" % (state, count),
-                    if state in self.cards["states"] and sprint["total_cards"]:
-                        days = sprint["times"][state].total_seconds() /60/60/24
-                        average = days/sprint["total_cards"]
-
-                        days = sprint["time_until_now"][state].total_seconds() /60/60/24
-                        average_tun = days/sprint["total_cards"]
-                    else:
-                        average = 0
-                        average_tun = 0
-                    #print "%5.2f" % average,
-
-                    sprint_duration = (sprint["end"] - sprint["start"]).days + 1
-                    daily_average = average / sprint_duration
-                    #print sprint_duration,
-                    print "%5.2f" % daily_average,
-                    print "%6.2f" % average_tun,
-
-                    state_count = 0
-                    delta_count = 0
-                    for delta in sprint["deltas"]:
-                        delta_count += 1
-                        state_count += delta["counts"][state]
-
-                    #print "%3d, %2d" % (state_count, delta_count),
-                    #print "%5.2f" % (float(state_count) / delta_count)
-                    print ""
-
-                print ""
+            # TODO: Clear this out to an archive somewhere
+            # Logic from initial card metrics hack. Don't use for web.
+            #self._print_stats(component["name"])
 
         if len(self.found_states.keys()):
             print "Unhandled states:"
             for key in self.found_states.keys():
                 print key
+
+    def _print_stats(self, component_name):
+        print "-" * 10, component_name, "-" * 10
+        for sprint in self.sprint_data:
+            print sprint["start"], "to", sprint["end"]
+            print " Late:", sprint["late_cards"]
+            for state, count in sprint["counts"].iteritems():
+                print "  %20s %3d" % (state, count),
+                if state in self.cards["states"] and sprint["total_cards"]:
+                    days = sprint["times"][state].total_seconds() /60/60/24
+                    average = days/sprint["total_cards"]
+
+                    days = sprint["time_until_now"][state].total_seconds() /60/60/24
+                    average_tun = days/sprint["total_cards"]
+                else:
+                    average = 0
+                    average_tun = 0
+                #print "%5.2f" % average,
+
+                sprint_duration = (sprint["end"] - sprint["start"]).days + 1
+                daily_average = average / sprint_duration
+                #print sprint_duration,
+                print "%5.2f" % daily_average,
+                print "%6.2f" % average_tun,
+
+                state_count = 0
+                delta_count = 0
+                for delta in sprint["deltas"]:
+                    delta_count += 1
+                    state_count += delta["counts"][state]
+
+                #print "%3d, %2d" % (state_count, delta_count),
+                #print "%5.2f" % (float(state_count) / delta_count)
+                print ""
+
+            print ""
 
     def card_metrics(self, card):
         today = datetime.datetime.today()
@@ -643,17 +715,17 @@ def print_summary(cards):
 
 
 def main():
-    jira_cards = get_cards()
-    start_date = datetime.date(2014,3,8)
-    end_date = datetime.date(2014,9,14)
+    jira_cards = get_cards(get_update=True)
+    start_date = datetime.date(2000,1,1)
+    end_date = datetime.date(3000,1,1)
 
     cards = organise_cards(jira_cards, start_date, end_date)
 
-    start_date = datetime.date(2014,1,1)
-    end_date = datetime.date(3014,3,28)
+    #start_date = datetime.date(2014,1,1)
+    #end_date = datetime.date(3014,3,28)
 
-    metrics = Metrics(cards, jira_cards, start_date, end_date)
-    metrics.get_metrics()
+    #metrics = Metrics(cards, jira_cards, start_date, end_date)
+    #metrics.get_metrics()
     #print_summary(cards)
 
 

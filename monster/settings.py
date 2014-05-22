@@ -3,7 +3,7 @@
 import os
 import datetime
 
-DEBUG = True
+DEBUG = False
 TEMPLATE_DEBUG = DEBUG
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -166,5 +166,5 @@ LOGGING = {
 
 from local_settings import *
 
-DEFAULT_START_DATE = datetime.date(2014,3,8)
-DEFAULT_END_DATE = datetime.date(2014,9,14)
+DEFAULT_START_DATE = datetime.date(2000,3,8)
+DEFAULT_END_DATE = datetime.date(2100,9,14)

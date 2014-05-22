@@ -288,7 +288,7 @@ class FastData():
         filters = DefaultFilters.objects.all()[0]
         self.jira_cards = get_cards()
         self.cards = organise_cards(
-                self.jira_cards, filters.from_date, filters.to_date)
+                self.jira_cards)
 
 
     def get(self, component_filter=None, status_filter=None):
@@ -301,7 +301,7 @@ class FastData():
         if component_filter or status_filter:
             filters = DefaultFilters.objects.all()[0]
             return organise_cards(
-                self.jira_cards, filters.from_date, filters.to_date,
+                self.jira_cards,
                 component_filter=component_filter,
                 status_filter=status_filter)
 
@@ -333,4 +333,7 @@ class Roadmap(TemplateView):
         return data.get()
 
 def get_json(request, component_name):
+    if component_name == "ALL":
+        return HttpResponse(json.dumps(data.get()))
+
     return HttpResponse(json.dumps(data.get(component_name)))
