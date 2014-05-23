@@ -7,7 +7,7 @@ import os.path
 import time
 import datetime
 #import cProfile
-from pymongo import MongoClient
+import pymongo
 
 def download(url, filename, max_results=None):
     got_results = 0
@@ -736,7 +736,21 @@ def print_summary(cards):
 
 
 def main():
-    client = MongoClient()
+    connect_count = 0
+
+    while True:
+        try:
+            client = pymongo.MongoClient()
+            print "Connected!"
+            break
+        except pymongo.errors.ConnectionFailure:
+            connect_count += 1
+            if connect_count < 60:
+                print "Waiting for DB to start"
+                time.sleep(1)
+            else:
+                exit(1)
+
     get_cards(client, get_update=False)
     start_date = datetime.date(2000,1,1)
     end_date = datetime.date(3000,1,1)
