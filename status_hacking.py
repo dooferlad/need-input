@@ -6,7 +6,8 @@ import local_settings as settings
 import os.path
 import time
 import datetime
-import cProfile
+#import cProfile
+from pymongo import MongoClient
 
 def download(url, filename, max_results=None):
     got_results = 0
@@ -46,7 +47,8 @@ def download(url, filename, max_results=None):
 
     return all_data
 
-def get_cards(get_update=False):
+
+def get_cards(client, get_update=False):
     filename = "query.json"
     url = 'https://cards.linaro.org/rest/api/2/search?'
     fields = ['summary', 'status', 'resolution', 'resolutiondate',
@@ -57,6 +59,8 @@ def get_cards(get_update=False):
     url += '&jql='
     jql = 'project=CARD'
 
+    cards_db = client["roadmap"]
+
     if os.path.isfile(filename):
         print "Opening", filename
         with open(filename) as f:
@@ -66,7 +70,7 @@ def get_cards(get_update=False):
             print "Downloading update"
             # TODO: calculate update time based on age of "filename"
             # -- no - put in CouchDB! Keep an update time or something.
-            jql += ' AND updated > -30d'
+            jql += ' AND updated > -3d'
             url += urllib.quote_plus(jql)
             updates = download(url, "update.json")
 
@@ -95,7 +99,8 @@ def get_cards(get_update=False):
         url += urllib.quote_plus(jql)
         jira_cards = download(url, filename)
 
-    return jira_cards
+    cards_db["jira_cards"].insert(jira_cards["issues"])
+
 
 def add_card(card, cards, start_date, end_date, include_changelog):
     # Given a lump of data from Jira, insert data into nice dict.
@@ -163,7 +168,7 @@ def add_card(card, cards, start_date, end_date, include_changelog):
     return True
 
 
-def organise_cards(jira_cards, start_date=None, end_date=None,
+def organise_cards(client, start_date=None, end_date=None,
                    component_filter=None, status_filter=None,
                    include_changelog=False):
     states = ["Admin",
@@ -174,7 +179,8 @@ def organise_cards(jira_cards, start_date=None, end_date=None,
               "Upstream Development",
               "Closing-out Review",
               "Closed",]
-              #"Total"]
+
+    jira_cards = client["roadmap"]["jira_cards"]
 
     cards = {
         "components": [],
@@ -187,13 +193,25 @@ def organise_cards(jira_cards, start_date=None, end_date=None,
 
     # Pick out components
     components = {}
-    for card in jira_cards["issues"]:
-        for target_component in card["fields"]["components"]:
-            if target_component["id"] not in components:
-                components[target_component["id"]] = target_component["name"]
+    # for card in jira_cards.find():
+    #     print "1", card["key"]
+    #     for target_component in card["fields"]["components"]:
+    #         if target_component["id"] not in components:
+    #             components[target_component["id"]] = target_component["name"]
+    #             cards["components"].append({
+    #                 "id": target_component["id"],
+    #                 "name": target_component["name"]
+    #             })
+
+    ids = jira_cards.distinct("fields.components.id")
+    for id in ids:
+        card = jira_cards.find_one({"fields.components.id": id})
+        for component in card["fields"]["components"]:
+            if component["id"] == id:
+                components[id] = component["name"]
                 cards["components"].append({
-                    "id": target_component["id"],
-                    "name": target_component["name"]
+                    "id": id,
+                    "name": component["name"],
                 })
 
     # Pick out cards
@@ -201,7 +219,7 @@ def organise_cards(jira_cards, start_date=None, end_date=None,
         if component_filter and component_name != component_filter:
             continue
         states = {}
-        for card in jira_cards["issues"]:
+        for card in jira_cards.find({"fields.components.id": component_id}):
             for component in card["fields"]["components"]:
                 if component["id"] == component_id:
                     if(status_filter and status_filter !=
@@ -268,9 +286,12 @@ def organise_cards(jira_cards, start_date=None, end_date=None,
             "end": str(sprint["end"]),
         })
 
-
+    client["roadmap"].drop_collection("cards")
+    cards_db = client["roadmap"]["cards"]
+    cards_db.insert(cards)
 
     return cards
+
 
 class CardInSprint:
     def __init__(self, sprint_start, sprint_end, card_start, card_end):
@@ -715,11 +736,12 @@ def print_summary(cards):
 
 
 def main():
-    jira_cards = get_cards(get_update=True)
+    client = MongoClient()
+    #get_cards(client, get_update=False)
     start_date = datetime.date(2000,1,1)
     end_date = datetime.date(3000,1,1)
 
-    cards = organise_cards(jira_cards, start_date, end_date)
+    cards = organise_cards(client, start_date, end_date)
 
     #start_date = datetime.date(2014,1,1)
     #end_date = datetime.date(3014,3,28)

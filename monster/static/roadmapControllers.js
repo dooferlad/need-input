@@ -85,7 +85,7 @@ roadmapControllers.controller('RoadmapListCtrl', ['$scope', 'RoadmapData', '$loc
     function($scope, RoadmapData, $location) {
 
         RoadmapData.success(function(data) {
-            $scope.data = data;
+            $scope.data = data[0];
 
             /* Add a selected tag to all sprints, which will be used for
                showing the user the selected date range. */
@@ -247,7 +247,7 @@ roadmapControllers.controller('RoadmapDetailCtrl',
         $scope.$watch($scope.getWidth, function() {
             if (typeof $scope.done_init === 'undefined'){
                 RoadmapData.success(function(data) {
-                    $scope.data = filter(data, filter_params);
+                    $scope.data = filter(data[0], filter_params);
                     $scope.roadmap_data = drawRoadmap($scope.data);
                     $scope.done_init = true;
                     resizeRoadmap($scope.roadmap_data);

@@ -33,6 +33,9 @@ import json
 from status_hacking import get_cards, organise_cards, print_summary
 from datetime import datetime
 from models import DefaultFilters
+from pymongo import MongoClient
+from bson import json_util
+import time
 
 
 def create_wi_list(text):
@@ -277,29 +280,26 @@ class FastData():
     """
     def __init__(self):
         self.cards = None
+        self.client = MongoClient()
         self.load()
+        self.timeout = 5
 
     def load(self):
-        self.jira_cards = get_cards()
-        self.cards = organise_cards(self.jira_cards)
+        self.data_time = time.time()
+        self.json_cards = json_util.dumps(
+            self.client["roadmap"]["cards"].find())
 
-    def get(self, component_filter=None, status_filter=None):
+    def get(self):
         """Return data needed for page.
 
-        This is optimised to not do any work in the general case of needing
-        all data, only filtering when less than all data is requested.
+        We re-load after a timeout from the DB to keep the data near live, but
+        since this is a large chunk of data to turn into JSON it takes ~100ms on
+        a recent desktop so we don't want to do it every time.
         """
+        if time.time() - self.data_time > self.timeout:
+            self.load()
+        return self.json_cards
 
-        if component_filter or status_filter:
-            return organise_cards(
-                self.jira_cards,
-                component_filter=component_filter,
-                status_filter=status_filter)
-
-        return self.cards
-
-    def get_cards(self, component_filter=None, status_filter=None):
-        pass
 
 data = FastData()
 
@@ -324,7 +324,4 @@ class Roadmap(TemplateView):
         return data.get()
 
 def get_json(request, component_name):
-    if component_name == "ALL":
-        return HttpResponse(json.dumps(data.get()))
-
-    return HttpResponse(json.dumps(data.get(component_name)))
+    return HttpResponse(data.get())
