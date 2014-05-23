@@ -737,11 +737,11 @@ def print_summary(cards):
 
 def main():
     client = MongoClient()
-    #get_cards(client, get_update=False)
+    get_cards(client, get_update=False)
     start_date = datetime.date(2000,1,1)
     end_date = datetime.date(3000,1,1)
 
-    cards = organise_cards(client, start_date, end_date)
+    organise_cards(client, start_date, end_date)
 
     #start_date = datetime.date(2014,1,1)
     #end_date = datetime.date(3014,3,28)
