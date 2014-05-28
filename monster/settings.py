@@ -93,14 +93,31 @@ STATICFILES_FINDERS = (
 #    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
 
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = 'p3szks856)8x2wr%ntbn3c!+(#v$$r_=ygiiku6x(vh8v@68^!'
+# Instead of reading SECRET_KEY from here, read it from a file that isn't
+# checked in to keep it a secret. Will generate a key if needed.
+with open(os.path.join(ROOT_DIR, "django_secret.txt"), "a+") as secret_file:
+    secret_file.seek(0)
+    SECRET_KEY = secret_file.read()
+
+    if not SECRET_KEY:
+        import random
+        chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)'
+        SECRET_KEY = ''.join(
+            [random.SystemRandom().choice(chars) for i in range(50)])
+
+        secret_file.write(SECRET_KEY)
+
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
     'django.template.loaders.filesystem.Loader',
     'django.template.loaders.app_directories.Loader',
 #     'django.template.loaders.eggs.Loader',
+)
+
+TEMPLATE_CONTEXT_PROCESSORS = (
+    'social.apps.django_app.context_processors.backends',
+    'social.apps.django_app.context_processors.login_redirect',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -131,7 +148,47 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
+    'social.apps.django_app.default',
     'puke',
+)
+
+#AUTH_USER_MODEL = 'app.CustomUser'
+
+LOGIN_URL = '/login/google-oauth2/'
+LOGIN_REDIRECT_URL = '/'
+URL_PATH = ''
+SOCIAL_AUTH_STRATEGY = 'social.strategies.django_strategy.DjangoStrategy'
+SOCIAL_AUTH_STORAGE = 'social.apps.django_app.default.models.DjangoStorage'
+SOCIAL_AUTH_GOOGLE_OAUTH_SCOPE = [
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/userinfo.profile'
+]
+
+# SOCIAL_AUTH_EMAIL_FORM_URL = '/signup-email'
+SOCIAL_AUTH_EMAIL_FORM_HTML = 'email_signup.html'
+SOCIAL_AUTH_EMAIL_VALIDATION_FUNCTION = 'example.app.mail.send_validation'
+SOCIAL_AUTH_EMAIL_VALIDATION_URL = '/email-sent/'
+# SOCIAL_AUTH_USERNAME_FORM_URL = '/signup-username'
+SOCIAL_AUTH_USERNAME_FORM_HTML = 'username_signup.html'
+
+SOCIAL_AUTH_PIPELINE = (
+    'social.pipeline.social_auth.social_details',
+    'social.pipeline.social_auth.social_uid',
+    'social.pipeline.social_auth.auth_allowed',
+    'social.pipeline.social_auth.social_user',
+    'social.pipeline.user.get_username',
+    'puke.pipeline.require_email',
+    'social.pipeline.mail.mail_validation',
+    'social.pipeline.user.create_user',
+    'social.pipeline.social_auth.associate_user',
+    'social.pipeline.social_auth.load_extra_data',
+    'social.pipeline.user.user_details'
+)
+
+AUTHENTICATION_BACKENDS = (
+    'social.backends.google.GoogleOAuth',
+    'social.backends.google.GoogleOAuth2',
+    'social.backends.google.GoogleOpenId',
 )
 
 # A sample logging configuration. The only tangible logging

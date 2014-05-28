@@ -1,10 +1,6 @@
-from django.db import models
-from django.conf import settings
+# Define a custom User class to work with django-social-auth
+from django.contrib.auth.models import AbstractUser
 
-class DefaultFilters(models.Model):
-    from_date = models.DateField(
-        'Date to start displaying data after',
-        default=settings.DEFAULT_START_DATE)
-    to_date = models.DateField(
-        'Date to stop displaying data before',
-        default=settings.DEFAULT_END_DATE)
+
+class CustomUser(AbstractUser):
+    pass

@@ -16,6 +16,9 @@
 # along with Need Input.  If not, see <http://www.gnu.org/licenses/>.
 
 from django.http import HttpResponse
+from django.http import HttpResponseBadRequest
+from django.http import HttpResponseRedirect
+from django.template import RequestContext
 from django.conf import settings
 from django.shortcuts import render_to_response
 import imaplib
@@ -27,16 +30,24 @@ from BeautifulSoup import BeautifulSoup
 import urlparse
 import threading
 import Queue
-import urllib
-import urllib2
-import json
-from status_hacking import get_cards, organise_cards, print_summary
-from datetime import datetime
-from models import DefaultFilters
+# import urllib
+# import urllib2
+# import json
+# from status_hacking import get_cards, organise_cards, print_summary
+# from datetime import datetime
+# from models import DefaultFilters
 from pymongo import MongoClient
 from bson import json_util
 import time
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout as auth_logout, login
 
+from social.backends.oauth import BaseOAuth1, BaseOAuth2
+from social.backends.google import GooglePlusAuth
+from social.apps.django_app.utils import strategy
+import json
+
+from django.shortcuts import redirect
 
 def create_wi_list(text):
     work_items = []
@@ -269,8 +280,6 @@ def home(request):
             "calendar": settings.CAL_EMBED
         })
 
-from django.views.generic import TemplateView, View
-cards = None
 
 class FastData():
     """JSON loaded into a dictionary once for fast access.
@@ -300,28 +309,46 @@ class FastData():
             self.load()
         return self.json_cards
 
-
 data = FastData()
 
 
-class Status(TemplateView):
-    template_name = 'status.html'
-
-    def get_context_data(self, **kwargs):
-        return data.get()
-
-
-class Component(TemplateView):
-    template_name = 'component_status.html'
-
-    def get_context_data(self, component_name=None, state_name=None, **kwargs):
-        return data.get(component_name, state_name)
-
-class Roadmap(TemplateView):
-    template_name = 'roadmap.html'
-
-    def get_context_data(self, **kwargs):
-        return data.get()
-
+@login_required
 def get_json(request, component_name):
     return HttpResponse(data.get())
+
+def logout(request):
+    """Logs out user"""
+    auth_logout(request)
+    return HttpResponse("Logged out")
+
+@login_required
+def roadmap(request):
+    with open("templates/roadmap.html") as f:
+        return HttpResponse(f.read())
+
+# @login_required
+# def done(request):
+#     """Login complete view, displays user data"""
+#     scope = ' '.join(GooglePlusAuth.DEFAULT_SCOPE)
+#     return render_to_response('done.html', {
+#         'user': request.user,
+#         'plus_id': getattr(settings, 'SOCIAL_AUTH_GOOGLE_PLUS_KEY', None),
+#         'plus_scope': scope
+#     }, RequestContext(request))
+
+# @strategy('social:complete')
+# def ajax_auth(request, backend):
+#     backend = request.strategy.backend
+#     if isinstance(backend, BaseOAuth1):
+#         token = {
+#             'oauth_token': request.REQUEST.get('access_token'),
+#             'oauth_token_secret': request.REQUEST.get('access_token_secret'),
+#         }
+#     elif isinstance(backend, BaseOAuth2):
+#         token = request.REQUEST.get('access_token')
+#     else:
+#         raise HttpResponseBadRequest('Wrong backend type')
+#     user = request.strategy.backend.do_auth(token, ajax=True)
+#     login(request, user)
+#     data = {'id': user.id, 'username': user.username}
+#     return HttpResponse(json.dumps(data), mimetype='application/json')

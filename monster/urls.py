@@ -21,10 +21,13 @@ import os
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
-from puke.views import Status, Component, Roadmap, get_json
+from puke.views import get_json
 admin.autodiscover()
 
 urlpatterns = patterns('',
+    url('', include('social.apps.django_app.urls', namespace='social')),
+    url(r'^logout/$', 'puke.views.logout'),
+    url('^$', 'puke.views.roadmap'),
     # Home
     #url(r'^$', 'puke.views.home', name='home'),
     #url(r'status/', Status.as_view(), name='status'),
@@ -52,6 +55,11 @@ urlpatterns = patterns('',
 
     url(r'^bootstrap/(?P<path>.*)$', 'django.views.static.serve',
         {'document_root': os.path.join(settings.ROOT_PATH, "../bootstrap")}),
+
+    url(r'^login/$', 'django.contrib.auth.views.login',
+        {'template_name': "login.html"}, name="login"),
+
+    #url(r'^logout/$', 'django.contrib.auth.views.logout', {'next_page': '/'}),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     #url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
