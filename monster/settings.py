@@ -152,7 +152,7 @@ INSTALLED_APPS = (
     'puke',
 )
 
-#AUTH_USER_MODEL = 'app.CustomUser'
+AUTH_USER_MODEL = 'puke.CustomUser'
 
 LOGIN_URL = '/login/google-oauth2/'
 LOGIN_REDIRECT_URL = '/'
