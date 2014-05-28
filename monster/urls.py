@@ -24,10 +24,13 @@ from django.contrib import admin
 from puke.views import get_json
 admin.autodiscover()
 
+handler500 = 'puke.views.handler500'
+
 urlpatterns = patterns('',
     url('', include('social.apps.django_app.urls', namespace='social')),
     url(r'^logout/$', 'puke.views.logout'),
     url('^$', 'puke.views.roadmap'),
+
     # Home
     #url(r'^$', 'puke.views.home', name='home'),
     #url(r'status/', Status.as_view(), name='status'),

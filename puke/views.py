@@ -326,6 +326,13 @@ def roadmap(request):
     with open("templates/roadmap.html") as f:
         return HttpResponse(f.read())
 
+def handler500(request):
+    if request.path == '/complete/google-oauth2/' and request.user.id is None:
+        return HttpResponse(
+            "Invalid login. Only logins from linaro.org are permitted.")
+
+    return HttpResponse("Internal server error")
+
 # @login_required
 # def done(request):
 #     """Login complete view, displays user data"""

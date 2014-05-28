@@ -163,6 +163,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH_SCOPE = [
     'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/userinfo.profile'
 ]
+SOCIAL_AUTH_GOOGLE_OAUTH2_WHITELISTED_DOMAINS = ['linaro.org']
 
 # SOCIAL_AUTH_EMAIL_FORM_URL = '/signup-email'
 SOCIAL_AUTH_EMAIL_FORM_HTML = 'email_signup.html'
