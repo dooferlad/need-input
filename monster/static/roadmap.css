@@ -2,7 +2,7 @@
 -------------------------------------------------- */
 
 body > .container, .container-fluid {
-  padding: 33px 4px 0;
+  padding: 57px 4px 0;
 }
 
 .sprint-range-filler {
@@ -53,4 +53,12 @@ code {
 
 .no-margin-bottom {
   margin-bottom: 0;
+}
+
+.d3-tip {
+  line-height: 1;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
 }

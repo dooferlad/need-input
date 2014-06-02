@@ -115,7 +115,7 @@ roadmapControllers.controller('RoadmapListCtrl', ['$scope', 'RoadmapData', '$loc
             }
         });
 
-        $scope.isCollapsed = false;
+        $scope.isCollapsed = true;
         $scope.openSelector = "start";
         $scope.selecting = false;
 

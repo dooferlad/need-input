@@ -208,15 +208,6 @@ def organise_cards(client, start_date=None, end_date=None,
 
     # Pick out components
     components = {}
-    # for card in jira_cards.find():
-    #     print "1", card["key"]
-    #     for target_component in card["fields"]["components"]:
-    #         if target_component["id"] not in components:
-    #             components[target_component["id"]] = target_component["name"]
-    #             cards["components"].append({
-    #                 "id": target_component["id"],
-    #                 "name": target_component["name"]
-    #             })
 
     ids = jira_cards.distinct("fields.components.id")
     for id in ids:

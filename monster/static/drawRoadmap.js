@@ -19,29 +19,71 @@ function get_text_position(d, x) {
     return x_pos;
 }
 
-function get_icon_position(d, x) {
-    var date = parse_date(d);
-    var x_pos = 0;
-    if (date != null)
-    {
-        x_pos = x(date);
+function get_icon_points (d, width) {
+    // Shapes used to draw the roadmap diagram
+    var hexagon = ["-2,10", "5,0", "15,0", "22,10", "15,20", "5,20"];
+    var square = ["0,0", "0,20", "20,20", "20,0"];
+    var diamond = ["10,0", "20,10", "10,20", "0,10"];
+    var drop = ["3,0", "17,0", "20,5", "20,7", "11,20", "9,20", "0,7", "0,5"];
+
+    if (d.summary.substring(0, 4).toLowerCase() == "epic") {
+        var arrowhead_left = (width - 15).toString();
+        var arrowhead_right = (width - 3).toString();
+        var epic = [
+            arrowhead_left + ",-1",
+            arrowhead_right + ",13",
+            arrowhead_left + ",26",
+            arrowhead_left + ",22",
+            "0,22", "0,3",
+            arrowhead_left + ",3"];
+        return epic;
     }
-    return x_pos;
+    switch (d.status) {
+        case "Drafting":
+            return hexagon;
+        case "Approved":
+            return square;
+        case "Scheduled":
+            return drop;
+        case "Development":
+            return diamond;
+        case "Closed":
+            return square;
+        case "Closing-out Review":
+            return diamond;
+        default:
+            return square;
+    }
+}
+
+function get_icon_transform(d, x, i) {
+    var x_pos = 0;
+
+    if (d.summary.substring(0, 4).toLowerCase() == "epic") {
+        x_pos = 0;
+    }
+    else {
+        var date = parse_date(d);
+        if (date != null)
+        {
+            x_pos = x(date);
+        }
+    }
+
+    return "translate("
+        + x_pos
+        + ","
+        + (i * 25 + 2)
+        + ")";
 }
 
 function drawRoadmap(data) {
     // Draw the roadmap diagram as an SVG.
 
-    // Shapes used to draw the roadmap diagram
-    var hexagon = ["0,10", "6,0", "14,0", "20,10", "14,20", "6,20"];
-    var square = ["0,0", "0,20", "20,20", "20,0"];
-    var diamond = ["10,0", "20,10", "10,20", "0,10"];
-    var drop = ["3,0", "17,0", "20,5", "20,7", "11,20", "9,20", "0,7", "0,5"];
-
     // Set up diagram height and y axis based on how much data there is to
     // display. vertical_padding is space for the axis to be drawn.
     // height is the height needed to display the data.
-    var height = 24 * data.issues.length;
+    var height = 25 * data.issues.length;
     var vertical_padding = 30;
 
     var y = d3.scale.linear()
@@ -92,7 +134,7 @@ function drawRoadmap(data) {
         .attr('class', 'background')
         .attr("width", "100%")
         .attr("height", "100%")
-        .attr("fill", "#eeffee");
+        .attr("fill", "#FFFFFF");
 
     // Attach the visible x axis. We give it a class to find it during resize
     svg.append("g")
@@ -108,31 +150,48 @@ function drawRoadmap(data) {
                   return d.url;
               });
 
+    tip = d3.tip()
+      .attr('class', 'd3-tip')
+      .offset([-10, 0])
+      .html(function(d) {
+        tooltip = "<ul>" +
+            "<li>Key: " + d.key + "</li>";
+
+        var i;
+
+        for (i = 0; i < d.labels.length; i++) {
+            tooltip += "<li>Label: " + d.labels[i] + "</li>"
+        }
+
+        for (i = 0; i < d.links_in.length; i++) {
+            tooltip += "<li>Implements: " + d.links_in[i] + "</li>"
+        }
+
+        for (i = 0; i < d.links_out.length; i++) {
+            tooltip += "<li>Depends on: " + d.links_out[i] + "</li>"
+        }
+
+        tooltip += "<li>Status: " + d.status + "</li>" +
+            "</ul>";
+
+        return tooltip;
+      });
+
+    svg.call(tip);
+
     // The icon is drawn as a polygon, the shape and colour of which
     // depends on the project status.
     icon.append("polygon")
-        .attr("points", function (d) {
-                  switch (d.status) {
-                      case "Drafting":
-                          return hexagon;
-                      case "Approved":
-                          return square;
-                      case "Scheduled":
-                          return drop;
-                      case "Development":
-                          return diamond;
-                      case "Closed":
-                          return square;
-                      case "Closing-out Review":
-                          return diamond;
-                      default:
-                          return square;
-                  }
-              })
+        .attr("points", function (d) { return get_icon_points(d, width); })
         .attr("fill", function (d) {
                   if (parse_date(d) == null) {
                       return "grey";
                   }
+
+                  if (d.summary.substring(0, 4).toLowerCase() == "epic") {
+                      return "#ddffdd";
+                  }
+
                   switch (d.status) {
                       case "Drafting":
                           return "yellow";
@@ -141,29 +200,52 @@ function drawRoadmap(data) {
                       case "Scheduled":
                           return "#e48c48";
                       case "Development":
-                          return "green";
+                          return "#00941b";
                       case "Closed":
-                          return "blue";
+                          return "#00a3e0";
                       case "Closing-out Review":
-                          return "#4d9d93";
+                          return "#008a8e";
                       default:
                           return "red";
                   }
               })
-        .attr("transform", function (d, i) {
-                  var x_pos = get_icon_position(d, x);
-                  return "translate("
-                      + x_pos
-                      + ","
-                      + i * 24
-                      + ")";
-              })
+        .attr("stroke", function (d) {
+                  if (parse_date(d) == null) {
+                      return "grey";
+                  }
 
-        .attr("class", "roadmapicon");
+                  if (d.summary.substring(0, 4).toLowerCase() == "epic") {
+                      return "#aaffaa";
+                  }
+
+                  switch (d.status) {
+                      case "Drafting":
+                          return "#fece00";
+                      case "Approved":
+                          return "#e48c48";
+                      case "Scheduled":
+                          return "#a48c18";
+                      case "Development":
+                          return "#107421";
+                      case "Closed":
+                          return "#0060bf";
+                      case "Closing-out Review":
+                          return "#006b6c";
+                      default:
+                          return "red";
+                  }
+              })
+        .attr("stroke-width", 2)
+        .attr("transform", function (d, i) {
+                      return get_icon_transform(d, x, i);
+              })
+        .attr("class", "roadmapicon")
+        .on("mouseover", tip.show)
+        .on("mouseout", tip.hide);
 
     icon.append("text")
         .attr("y", function (d, i) {
-                  return i * 24 + 12;
+                  return i * 25 + 13;
               })
         .attr('x', function (d){return get_text_position(d, x)})
         .attr("dy", ".35em")
@@ -242,13 +324,9 @@ function resizeRoadmap(roadmap_data) {
     // to save the metadata ourselves.
     svg.selectAll('.roadmapicon')
         .attr("transform", function (d, i) {
-                  var x_pos = get_icon_position(d, x);
-                  return "translate("
-                      + x_pos
-                      + ","
-                      + i * 24
-                      + ")";
-              });
+                  return get_icon_transform(d, x, i);
+              })
+        .attr("points", function (d) { return get_icon_points(d, width); });
 
     // Move the label text
     svg.selectAll('.roadmaptext')
