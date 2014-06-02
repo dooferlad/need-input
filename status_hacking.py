@@ -52,7 +52,7 @@ def get_cards(client, get_update=False):
     filename = "query.json"
     url = 'https://cards.linaro.org/rest/api/2/search?'
     fields = ['summary', 'status', 'resolution', 'resolutiondate',
-              'components', 'fixVersions', 'created']
+              'components', 'fixVersions', 'created', 'issuelinks', 'labels']
     url += 'fields=' + ','.join(fields)
     url += '&maxResults=100'
     url += '&expand=changelog'
@@ -99,6 +99,10 @@ def get_cards(client, get_update=False):
         url += urllib.quote_plus(jql)
         jira_cards = download(url, filename)
 
+    # TODO: Get rid of this JSON storage nonsense and just store in DB.
+    # cards_db.find_one({"key": card["key"]) will return something to update or
+    # Null, either way, overwrite with data from the card, keeping existing _id
+    cards_db["jira_cards"].drop()
     cards_db["jira_cards"].insert(jira_cards["issues"])
 
 
@@ -147,24 +151,35 @@ def add_card(card, cards, start_date, end_date, include_changelog):
         "components": [],
         "completion_date": completion_date.strftime("%Y-%m-%d"),
         "created": card["fields"]["created"],
+        "links_in": [],
+        "links_out": [],
+        "key": card["key"],
+        "labels": card["fields"]["labels"],
     }
 
     if include_changelog and "changelog" in card:
         filtered_card["changelog"] = card["changelog"]
 
-    cards["issues"].append(filtered_card)
-
     for c in card["fields"]["components"]:
-        cards["issues"][-1]["components"].append(c["id"])
+        filtered_card["components"].append(c["id"])
 
     if card["fields"]["resolution"]:
-        cards["issues"][-1]["resolution"] = {
+        filtered_card["resolution"] = {
                 "name": card["fields"]["resolution"]["name"],
                 "date": card["fields"]["resolutiondate"]
             }
     else:
-        cards["issues"][-1]["resolution"] = None
+        filtered_card["resolution"] = None
 
+    links = card["fields"].get("issuelinks")
+    if links:
+        for link in links:
+            if "outwardIssue" in link:
+                filtered_card["links_out"].append(link["outwardIssue"]["key"])
+            if "inwardIssue" in link:
+                filtered_card["links_out"].append(link["inwardIssue"]["key"])
+
+    cards["issues"].append(filtered_card)
     return True
 
 
@@ -751,7 +766,7 @@ def main():
             else:
                 exit(1)
 
-    get_cards(client, get_update=False)
+    #get_cards(client, get_update=False)
     start_date = datetime.date(2000,1,1)
     end_date = datetime.date(3000,1,1)
 
